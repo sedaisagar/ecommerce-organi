@@ -178,3 +178,16 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=90),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
 }
+
+REST_PANDAS = {
+    "RENDERERS": (
+        "rest_pandas.renderers.PandasHTMLRenderer",
+        "rest_pandas.renderers.PandasCSVRenderer",
+        "rest_pandas.renderers.PandasTextRenderer",
+        "rest_pandas.renderers.PandasJSONRenderer",
+        "rest_pandas.renderers.PandasExcelRenderer",
+        "rest_pandas.renderers.PandasOldExcelRenderer",
+        "rest_pandas.renderers.PandasPNGRenderer",
+        "rest_pandas.renderers.PandasSVGRenderer",
+    ),
+}

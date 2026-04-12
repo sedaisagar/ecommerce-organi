@@ -1,4 +1,5 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, generics
+from rest_pandas import PandasMixin
 
 from api.serializers.product import DepartmentSerializer, VariantNameSerializer, VariantWithDetailsSerializer, VariantsSerializer
 from products.models import Departments, VariantName, Variants
@@ -27,7 +28,7 @@ class VariantNameViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action == "get_variants":
             return VariantWithDetailsSerializer
-            
+
         return super().get_serializer_class()
 
     @action(methods=["GET"], detail=False, url_path="get-variants")
@@ -46,4 +47,8 @@ class VariantViewSet(viewsets.ModelViewSet):
     # pagination_class = CustomPagination
 
 
+
+class VariantsReportView(PandasMixin, generics.ListAPIView):
+    queryset = VariantName.objects.all()
+    serializer_class = VariantWithDetailsSerializer
 
