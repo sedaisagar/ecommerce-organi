@@ -30,7 +30,7 @@ urlpatterns = [
         # 
         path("get-my-profile/", LoggedInUserProfile.as_view()),
     ])),
-    path(r'^data', VariantsReportView.as_view()),
+    # path(r'^data', VariantsReportView.as_view()),
     path("", include(router.urls)),
 ]
 
