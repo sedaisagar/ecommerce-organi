@@ -30,10 +30,7 @@ urlpatterns = [
         # 
         path("get-my-profile/", LoggedInUserProfile.as_view()),
     ])),
-    path("variant/report", VariantsReportView.as_view()),
+    path(r'^data', VariantsReportView.as_view()),
     path("", include(router.urls)),
 ]
-
-from rest_framework.urlpatterns import format_suffix_patterns
-urlpatterns = format_suffix_patterns(urlpatterns)
 
