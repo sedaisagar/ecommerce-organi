@@ -17,7 +17,7 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAdminUser]
 
 
-@extend_schema(tags=["LoggedIn User APIs"])
+@extend_schema(tags=["LoggedIn User API(s)"])
 class LoggedInUserProfile(views.APIView):
     permission_classes = [IsAuthenticated]
     
