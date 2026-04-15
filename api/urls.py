@@ -6,14 +6,19 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 from rest_framework import routers
 
-from api.viewsets.product import DepartmentViewSet, VariantNameViewSet, VariantViewSet, VariantsReportView
+from api.viewsets.product import DepartmentViewSet, VariantNameViewSet, VariantViewSet,ProductViewSet, VariantsReportView
 from api.viewsets.users import LoggedInUserProfile, UserViewSet
+
+from api.viewsets.public import DepartmentView,VariantsView, ProductsView
+
 
 router = routers.DefaultRouter()
 router.register("users", UserViewSet, basename="users-views") 
 router.register("departments", DepartmentViewSet, basename="dept-views")
 router.register("variant-names", VariantNameViewSet, basename="variant-name-views")
 router.register("variants", VariantViewSet, basename="variants-views")
+router.register("products", ProductViewSet, basename="product-views")
+
 
 
 urlpatterns = [
@@ -31,6 +36,15 @@ urlpatterns = [
         path("get-my-profile/", LoggedInUserProfile.as_view()),
     ])),
     # path(r'^data', VariantsReportView.as_view()),
+
+    path('public/', include([
+        path('departments/', DepartmentView.as_view()),
+        path('variants/', VariantsView.as_view()),
+        path('products/', ProductsView.as_view()),
+
+
+    ])),
+
     path("", include(router.urls)),
 ]
 

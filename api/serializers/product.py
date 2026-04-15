@@ -2,7 +2,7 @@ import random
 
 from rest_framework import serializers
 
-from products.models import Departments, VariantName, Variants
+from products.models import Departments, Product, VariantName, Variants
 from django.utils.text import slugify
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -71,4 +71,19 @@ class VariantWithDetailsSerializer(serializers.Serializer):
         data = {
             str(instance.name) : [i.name for i in instance.variants.all()]
         }
+        return data
+
+class ProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Product
+        fields = "__all__"
+
+    def to_representation(self, instance:Product):
+        data =  super().to_representation(instance)
+
+        data.update(
+            department=DepartmentSerializer(instance.department, context=self.context).data,
+            variants= VariantsSerializer(instance.variants.all(), many=True, context=self.context).data
+        )
+
         return data

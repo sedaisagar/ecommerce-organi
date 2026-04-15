@@ -1,8 +1,8 @@
 from rest_framework import viewsets, generics
 from rest_pandas import PandasMixin
 
-from api.serializers.product import DepartmentSerializer, VariantNameSerializer, VariantWithDetailsSerializer, VariantsSerializer
-from products.models import Departments, VariantName, Variants
+from api.serializers.product import DepartmentSerializer, ProductSerializer, VariantNameSerializer, VariantWithDetailsSerializer, VariantsSerializer
+from products.models import Departments, Product, VariantName, Variants
 from utils.pagination import CustomPagination
 from utils.permissions import IsAdminUser
 
@@ -46,6 +46,19 @@ class VariantViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAdminUser]
     # pagination_class = CustomPagination
 
+
+@extend_schema(tags=["Admin APIs -  Product(s)"])
+class ProductViewSet(viewsets.ModelViewSet):
+    queryset = Product.objects.all()
+    serializer_class = ProductSerializer
+    permission_classes = [IsAdminUser]
+    # pagination_class = CustomPagination
+
+    # {
+    #     'request':None,
+    #     'format':None,
+    #     'view':None,
+    # }
 
 
 class VariantsReportView(PandasMixin, generics.ListAPIView):
