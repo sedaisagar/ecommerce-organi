@@ -6,7 +6,7 @@ from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, Spec
 
 from rest_framework import routers
 
-from api.viewsets.logged_in_users import UserCartAction
+from api.viewsets.logged_in_users import  UserCartListAction
 from api.viewsets.product import DepartmentViewSet, VariantNameViewSet, VariantViewSet,ProductViewSet, VariantsReportView
 from api.viewsets.users import LoggedInUserProfile, UserViewSet
 
@@ -43,7 +43,7 @@ urlpatterns = [
         path('variants/', VariantsView.as_view()),
         path('products/', ProductsView.as_view()),
         # LOGGED IN USER APIs
-        path('cart-action/', UserCartAction.as_view()),
+        path('cart/', UserCartListAction.as_view()),
 
     ])),
 

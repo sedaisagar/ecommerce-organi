@@ -24,5 +24,6 @@ class LoggedInUserProfile(views.APIView):
     def get(self, request, *args, **kwargs):
         user : User = request.user
         # user = User.objects.all()
+        
         serializer = UserSerializer(instance=user)
         return Response(serializer.data)
