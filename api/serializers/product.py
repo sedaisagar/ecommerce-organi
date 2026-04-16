@@ -2,7 +2,7 @@ import random
 
 from rest_framework import serializers
 
-from products.models import Departments, Product, VariantName, Variants
+from products.models import CouponCode, Departments, Product, VariantName, Variants
 from django.utils.text import slugify
 
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -87,3 +87,10 @@ class ProductSerializer(serializers.ModelSerializer):
         )
 
         return data
+
+
+class CouponCodeSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = CouponCode
+        fields = "__all__"

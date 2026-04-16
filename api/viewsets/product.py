@@ -1,8 +1,8 @@
 from rest_framework import viewsets, generics
 from rest_pandas import PandasMixin
 
-from api.serializers.product import DepartmentSerializer, ProductSerializer, VariantNameSerializer, VariantWithDetailsSerializer, VariantsSerializer
-from products.models import Departments, Product, VariantName, Variants
+from api.serializers.product import CouponCodeSerializer, DepartmentSerializer, ProductSerializer, VariantNameSerializer, VariantWithDetailsSerializer, VariantsSerializer
+from products.models import CouponCode, Departments, Product, VariantName, Variants
 from utils.pagination import CustomPagination
 from utils.permissions import IsAdminUser
 
@@ -65,3 +65,11 @@ class VariantsReportView(PandasMixin, generics.ListAPIView):
     queryset = VariantName.objects.all()
     serializer_class = VariantWithDetailsSerializer
 
+
+
+
+@extend_schema(tags=["Admin APIs -  Coupons(s)"])
+class CouponCodeViewSet(viewsets.ModelViewSet):
+    queryset = CouponCode.objects.all()
+    serializer_class = CouponCodeSerializer
+    permission_classes = [IsAdminUser]

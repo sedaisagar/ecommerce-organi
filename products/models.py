@@ -68,7 +68,6 @@ class Product(CommonModel):
     department = models.ForeignKey(Departments, related_name="products", on_delete=models.PROTECT)
     variants = models.ManyToManyField(Variants, related_name="products", blank=True)
 
-
     class Meta:
         db_table = "products"
 
@@ -79,3 +78,15 @@ class Product(CommonModel):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
+
+
+class CouponCode(CommonModel):
+    code = models.CharField(max_length=20, unique=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+
+    class Meta:
+        db_table = "coupon_code"
