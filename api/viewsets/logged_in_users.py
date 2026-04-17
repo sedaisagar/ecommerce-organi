@@ -1,10 +1,11 @@
 from rest_framework import generics
 
-from api.serializers.logged_in_users import CartActionSerializer
-from cart_orders.models import CartItems
+from api.serializers.logged_in_users import CartActionSerializer, CouponApplySerializer, PendingOrderSerializer
+from cart_orders.models import CartItems, PendingOrder
 
 from drf_spectacular.utils import extend_schema
 
+from products.models import CouponCode
 from utils.permissions import IsUser
 from django.db.models import Sum, F
 
@@ -39,13 +40,23 @@ class UserCartListAction(generics.ListCreateAPIView):
         )
         
         total_amount = agg_result.get("total") 
+        
+        pending_order = PendingOrder.objects.filter(user=self.request.user).first()
+        
+        if not pending_order:
+            response.data["meta"] = {
+                "sub_total":total_amount,
+                "discount":0,
+                "delivery_charge":0,
+                "total":total_amount,
+            }
+        else:
+            response.data["meta"] = PendingOrderSerializer(pending_order).data
 
-        response.data["meta"] = {
-            "sub_total":total_amount,
-            "discount":0,
-            "delivery_charge":0,
-            "total":total_amount,
-        }
         return response
 
-        
+@extend_schema(tags=["LoggedIn User API(s)"])
+class CouponApplyView(generics.CreateAPIView):
+    queryset = CouponCode.objects.all()
+    serializer_class = CouponApplySerializer
+    permission_classes = [IsUser]

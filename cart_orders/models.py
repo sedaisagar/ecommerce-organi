@@ -14,7 +14,7 @@ class CartItems(CommonModel):
 
 class PendingOrder(CommonModel):
     user = models.ForeignKey("users.User",on_delete=models.CASCADE, related_name="pending_orders")
-    coupon_code = models.ForeignKey("products.CouponCode", related_name="pending_orders", on_delete=models.CASCADE)
+    coupon_code = models.ForeignKey("products.CouponCode", related_name="pending_orders", on_delete=models.CASCADE, null=True, blank=True)
     
     items = models.ManyToManyField(CartItems, related_name="pending_orders", blank=True)
 

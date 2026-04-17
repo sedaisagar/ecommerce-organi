@@ -2,6 +2,7 @@ import random
 
 from rest_framework import serializers
 
+from cart_orders.models import PendingOrder
 from products.models import CouponCode, Departments, Product, VariantName, Variants
 from django.utils.text import slugify
 
@@ -94,3 +95,13 @@ class CouponCodeSerializer(serializers.ModelSerializer):
     class Meta:
         model = CouponCode
         fields = "__all__"
+
+
+    def update(self, instance: CouponCode, validated_data):
+        
+        if "discount_amount" in validated_data or "max_discount_percentage" in validated_data:
+            # Deleting the pending order for applied coupon, but no payment is processed
+            # Either intitated or verified !
+            PendingOrder.objects.filter(coupon_code=instance, payment_id__isnull=True).delete()
+
+        return super().update(instance, validated_data)
