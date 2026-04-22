@@ -89,6 +89,13 @@ class ProductSerializer(serializers.ModelSerializer):
 
         return data
 
+class ProductResponseSerializer(serializers.ModelSerializer):
+    department=DepartmentSerializer()
+    variants= VariantsSerializer(many=True)
+    
+    class Meta:
+        model = Product
+        fields = "__all__"
 
 class CouponCodeSerializer(serializers.ModelSerializer):
 

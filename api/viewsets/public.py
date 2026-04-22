@@ -1,6 +1,6 @@
 from rest_framework import generics, views
 
-from api.serializers.product import DepartmentSerializer, ProductSerializer, VariantWithDetailsSerializer
+from api.serializers.product import DepartmentSerializer, ProductResponseSerializer, ProductSerializer, VariantWithDetailsSerializer
 from products.models import Departments, Product, VariantName
 
 from rest_framework.response import Response
@@ -21,5 +21,19 @@ class VariantsView(views.APIView):
 
 @extend_schema(tags=["Public APIs"])
 class ProductsView(generics.ListAPIView):
-    queryset = Product.objects.all()
-    serializer_class = ProductSerializer
+    queryset = Product.objects.filter().select_related("department").prefetch_related("variants")
+    serializer_class = ProductResponseSerializer
+    
+
+
+# Multiple Ledger(s)
+
+    # Shop 1
+        # Person A1 (eSewa, Khalti, Bank, Cash)
+        # Person B1 (eSewa, Khalti, Bank, Cash)
+    # Shop 2 
+        # Person A2 (eSewa, Khalti, Bank, Cash)
+        # Person B2 (eSewa, Khalti, Bank, Cash)
+    # Shop 3 
+        # Person A3 (eSewa, Khalti, Bank, Cash)
+        # Person B3 (eSewa, Khalti, Bank, Cash)
