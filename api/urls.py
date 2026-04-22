@@ -10,7 +10,7 @@ from api.viewsets.logged_in_users import  UserCartListAction, CouponApplyView
 from api.viewsets.product import DepartmentViewSet, VariantNameViewSet, VariantViewSet,ProductViewSet, CouponCodeViewSet
 from api.viewsets.users import LoggedInUserProfile, UserViewSet
 
-from api.viewsets.public import DepartmentView,VariantsView, ProductsView
+from api.viewsets.public import DepartmentView, RawSqlTestView,VariantsView, ProductsView
 
 
 router = routers.DefaultRouter()
@@ -44,6 +44,7 @@ urlpatterns = [
         # LOGGED IN USER APIs
         path('cart/', UserCartListAction.as_view()),
         path('apply-coupon/', CouponApplyView.as_view()),
+        path('raw-sql/', RawSqlTestView.as_view()),
 
     ])),
 

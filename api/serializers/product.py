@@ -41,7 +41,7 @@ class VariantNameSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 class VariantsSerializer(serializers.ModelSerializer):
-    variant_name = serializers.SerializerMethodField()
+    # variant_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Variants

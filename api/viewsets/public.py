@@ -21,7 +21,7 @@ class VariantsView(views.APIView):
 
 @extend_schema(tags=["Public APIs"])
 class ProductsView(generics.ListAPIView):
-    queryset = Product.objects.filter().select_related("department").prefetch_related("variants")
+    queryset = Product.objects.filter(publish=True).select_related("department").prefetch_related("variants")
     serializer_class = ProductResponseSerializer
     
 
@@ -37,3 +37,29 @@ class ProductsView(generics.ListAPIView):
     # Shop 3 
         # Person A3 (eSewa, Khalti, Bank, Cash)
         # Person B3 (eSewa, Khalti, Bank, Cash)
+
+
+from django.db import connection
+class RawSqlTestView(generics.GenericAPIView):
+    serializer_class = None
+
+    def get_queryset(self):
+        return super().get_queryset()
+
+
+    def fetch_all_products(self):
+        with connection.cursor() as cursor:
+            cursor.execute("select id, name, slug, price, market_price from products where publish=%s", [True])
+            row = cursor.fetchall()
+
+        return row
+
+    def get(self, request, *args, **kwargs):
+        # RAW SQL WAY
+        # prods = self.fetch_all_products()
+        # prods = [{'id':i[0], 'name':i[1], 'slug':i[2], 'price':i[3], 'market_price':i[4]} for i in prods]
+
+        # ORM WAY
+        prods = Product.objects.filter(publish=True).values("id","name","slug","price", "market_price")
+        
+        return Response({"data":list(prods)})
