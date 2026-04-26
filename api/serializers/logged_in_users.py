@@ -2,7 +2,7 @@ from typing import Union
 
 from rest_framework import serializers
 
-from cart_orders.models import CartItems, PendingOrder
+from cart_orders.models import CartItems, PendingOrder, ShippingBillingAddress
 from products.models import CouponCode, Product
 
 class CartActionSerializer(serializers.Serializer):
@@ -118,3 +118,113 @@ class PendingOrderSerializer(serializers.ModelSerializer):
         model = PendingOrder
         # fields = "__all__"
         exclude = ["items", "coupon_code", "user", "id", "publish", "priority"]
+
+
+class ShippingBillingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShippingBillingAddress
+        fields = "__all__"
+
+class CartCheckoutSerializer(serializers.Serializer):
+    DV = {
+        "first_name": "",
+        "last_name": "",
+        "country": "",
+        "street_address": "",
+        "apartment_suite_unit": "",  # optional
+        "town_city": "",
+        "state_country": "",
+        "postcode_zip": "",
+        "phone": "",
+        "email": ""
+    }
+    payment_method = serializers.ChoiceField(choices=PendingOrder.PAYMENT_METHODS, write_only=True)
+    shipping_billing_same = serializers.BooleanField(default=True, write_only=True)
+
+    # Capture Address From Billing In Default
+    billing_address = serializers.JSONField(default=DV, write_only=True) 
+    shipping_address = serializers.JSONField(default=DV, write_only=True) 
+
+
+    def inititate_with_khalti(self, validated_data : dict, pending_order: PendingOrder):
+        payment_link = ""
+        return payment_link
+
+
+    def handle_shipping_billing_address(self, validated_data: dict, pending_order:PendingOrder):
+        shipping_billing_same = validated_data.pop("shipping_billing_same", True)
+
+        billing_address : dict = validated_data.pop("billing_address", {})
+        shipping_address : dict = validated_data.pop("shipping_address", {})
+        
+        if shipping_billing_same:
+            shipping_billing_serializer = ShippingBillingSerializer(data=billing_address)
+            
+            valid = shipping_billing_serializer.is_valid(raise_exception=False)
+            if not valid:
+                raise serializers.ValidationError({
+                    "billing_address":shipping_billing_serializer.errors
+                })
+            
+            shipping_billing_instance : ShippingBillingAddress = shipping_billing_serializer.save()
+            
+            try:
+                pending_order.shipping_address.delete()
+                pending_order.billing_address.delete()
+            except:...
+
+            pending_order.shipping_address = shipping_billing_instance
+            pending_order.billing_address = shipping_billing_instance
+            pending_order.save(update_fields=["shipping_address", "billing_address"])
+
+        else:
+            shipping_serializer = ShippingBillingSerializer(data=shipping_address)
+            billing_serializer = ShippingBillingSerializer(data=billing_address)
+
+            svalid = shipping_serializer.is_valid(raise_exception=False) 
+            bvalid =  billing_serializer.is_valid(raise_exception=False) 
+            
+            if not (svalid or bvalid):
+                breakpoint()
+                raise serializers.ValidationError(
+                    {
+                        "billing_address": billing_serializer.errors,
+                        "shipping_address": shipping_serializer.errors,
+                    }
+                )
+
+            try:
+                pending_order.shipping_address.delete()
+                pending_order.billing_address.delete()
+            except:...
+            
+            
+            shipping_instance : ShippingBillingAddress = shipping_serializer.save()
+            billing_instance : ShippingBillingAddress = billing_serializer.save()
+            
+            pending_order.shipping_address = shipping_instance
+            pending_order.billing_address = billing_instance
+            pending_order.save(update_fields=["shipping_address", "billing_address"])
+        
+        
+
+    def create(self, validated_data: dict):
+        # context => {"request":"","view":"", "format":""}
+        request = self.context["request"]
+        user = request.user
+
+        pending_order = PendingOrder.objects.filter(user=user).first()
+        self.handle_shipping_billing_address(validated_data, pending_order)
+
+        payment_method = validated_data.pop("payment_method")
+
+        match payment_method:
+            case "Khalti":
+                self.inititate_with_khalti(validated_data, pending_order)
+            case "Esewa":
+                ...
+            case "COD":
+                ...
+
+
+        return validated_data

@@ -7,7 +7,7 @@ class CommonModel(models.Model):
 
     publish = models.BooleanField(default=True)
 
-    priority = models.PositiveIntegerField() # Highest comes first
+    priority = models.PositiveIntegerField(default=1) # Highest comes first
     # order = models.PositiveIntegerField() # Low to high
 
     class Meta:

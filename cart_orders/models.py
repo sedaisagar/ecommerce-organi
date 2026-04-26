@@ -12,7 +12,26 @@ class CartItems(CommonModel):
         db_table = "cart_items"
 
 
+class ShippingBillingAddress(CommonModel):
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    country = models.CharField(max_length=100)
+    street_address = models.CharField(max_length=100)
+    apartment_suite_unit = models.CharField(max_length=100)  
+    town_city = models.CharField(max_length=100)
+    state_country = models.CharField(max_length=100)
+    postcode_zip = models.CharField(max_length=100)
+    phone = models.CharField(max_length=100)
+    email = models.EmailField()
+    class Meta:
+        db_table = "shipping_billing_address"
+
 class PendingOrder(CommonModel):
+    PAYMENT_METHODS = (
+        ("Khalti", "Khalti"),
+        ("Esewa", "Esewa"),
+        ("COD", "COD"),
+    )
     user = models.ForeignKey("users.User",on_delete=models.CASCADE, related_name="pending_orders")
     coupon_code = models.ForeignKey("products.CouponCode", related_name="pending_orders", on_delete=models.CASCADE, null=True, blank=True)
     
@@ -24,10 +43,13 @@ class PendingOrder(CommonModel):
     coupon_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     # Capture payment information
+    payment_method = models.CharField(max_length=6, choices=PAYMENT_METHODS, default="COD")
     payment_id = models.CharField(max_length=45, null=True, blank=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
-
+    shipping_address = models.ForeignKey(ShippingBillingAddress, on_delete=models.SET_NULL, related_name="s_pending_orders", null=True, blank=True)
+    billing_address = models.ForeignKey(ShippingBillingAddress, on_delete=models.SET_NULL, related_name="b_pending_orders", null=True, blank=True)
+    
     class Meta:
         db_table = "pending_order"
      

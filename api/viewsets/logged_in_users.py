@@ -1,6 +1,6 @@
 from rest_framework import generics
 
-from api.serializers.logged_in_users import CartActionSerializer, CouponApplySerializer, PendingOrderSerializer
+from api.serializers.logged_in_users import CartActionSerializer, CartCheckoutSerializer, CouponApplySerializer, PendingOrderSerializer
 from cart_orders.models import CartItems, PendingOrder
 
 from drf_spectacular.utils import extend_schema
@@ -60,3 +60,14 @@ class CouponApplyView(generics.CreateAPIView):
     queryset = CouponCode.objects.all()
     serializer_class = CouponApplySerializer
     permission_classes = [IsUser]
+
+
+@extend_schema(tags=["LoggedIn User API(s)"])
+class CartCheckoutView(generics.CreateAPIView):
+    # queryset = CouponCode.objects.all()
+    serializer_class = CartCheckoutSerializer
+    permission_classes = [IsUser]
+
+    def get_queryset(self):
+        return []
+
