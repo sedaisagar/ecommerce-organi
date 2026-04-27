@@ -1,8 +1,15 @@
+import base64
+import hashlib
+import hmac
+import math
+import random
 from typing import Union
 
+import requests
 from rest_framework import serializers
 
 from cart_orders.models import CartItems, PendingOrder, ShippingBillingAddress
+from ecommerce import settings
 from products.models import CouponCode, Product
 
 class CartActionSerializer(serializers.Serializer):
@@ -92,7 +99,7 @@ class CouponApplySerializer(serializers.Serializer):
         
         coupon = CouponCode.objects.get(code=coupon_code)
         
-        cart_total = CartItems.objects.aggregate(total=Sum(F('quantity') * F('product__price'))).get("total") or 0
+        cart_total = CartItems.objects.filter(user=user).aggregate(total=Sum(F('quantity') * F('product__price'))).get("total") or 0
         pending_order, _ = PendingOrder.objects.update_or_create(
             user = user,
             defaults=dict(
@@ -147,8 +154,60 @@ class CartCheckoutSerializer(serializers.Serializer):
 
 
     def inititate_with_khalti(self, validated_data : dict, pending_order: PendingOrder):
+        BASE_PATH = "https://dev.khalti.com/api/v2"
+
+        INIT_URL = f"{BASE_PATH}/epayment/initiate/"
+        header={
+            "Authorization": f"Key {settings.KHALTI_SECRET_KEY}"  
+        }  
+        payment_id = random.randint(999,9999999)
+
+        payment_id = f"{pending_order.pk}-{payment_id}".zfill(12)
+        pending_order.payment_id = payment_id
+        pending_order.save(update_fields=["payment_id"])
+
+        payload = {
+            "return_url":"http://localhost:8000/payment-status",
+            "website_url":"http://localhost:8000/",
+            "amount":str(pending_order.total_amount * 100), # amount in paisa
+            "purchase_order_id":payment_id, # Unique id associated with payment	
+            "purchase_order_name":f"Payment worth {pending_order.total_amount} by {pending_order.user}"
+        }
+        response=requests.post(url=INIT_URL,json=payload,headers=header)
+
         payment_link = ""
+        if response.status_code == 200:
+            payment_link = response.json().get("payment_url")
         return payment_link
+
+    def initiate_with_esewa(self, validated_data, pending_order:PendingOrder):
+        payment_id = random.randint(999,9999999)
+
+        payment_id = f"{pending_order.pk}-{payment_id}".zfill(12)
+        pending_order.payment_id = payment_id
+        pending_order.save(update_fields=["payment_id"])
+
+        ESEWA_SECRET_KEY = settings.ESEWA_SECRET_KEY
+        ESEWA_MERCHANT_ID = settings.ESEWA_MERCHANT_ID
+
+        total_amount = math.trunc(pending_order.total_amount *100 ) / 100
+
+        # input text for signature generation
+        input_text = f"total_amount={total_amount},transaction_uuid={payment_id},product_code={ESEWA_MERCHANT_ID}"
+        
+        # Signature Generation
+        hmac_sha256 = hmac.new(ESEWA_SECRET_KEY.encode('utf-8'), input_text.encode('utf-8'), hashlib.sha256)
+        digest = hmac_sha256.digest()
+        signature = base64.b64encode(digest).decode('utf-8') 
+
+        return {
+            "amount":total_amount, 
+            "transaction_uuid":payment_id, 
+            "product_code":ESEWA_MERCHANT_ID, 
+            "signature":signature, 
+            "product_code":ESEWA_MERCHANT_ID
+        }
+
 
 
     def handle_shipping_billing_address(self, validated_data: dict, pending_order:PendingOrder):
@@ -212,19 +271,44 @@ class CartCheckoutSerializer(serializers.Serializer):
         # context => {"request":"","view":"", "format":""}
         request = self.context["request"]
         user = request.user
+        payment_method = validated_data.pop("payment_method")
+
+        cart_items = CartItems.objects.filter(user=user)
+        cart_total = cart_items.aggregate(total=Sum(F('quantity') * F('product__price'))).get("total") or 0
 
         pending_order = PendingOrder.objects.filter(user=user).first()
+
+        if not pending_order:
+            pending_order = PendingOrder.objects.create(
+                user = user,
+                delivery_charge = 0, 
+                coupon_amount = 0,
+                payment_method = payment_method,
+                total_amount = cart_total,
+            )
+            pending_order.items.set(cart_items,clear=True)
+        else:
+            pending_order.total_amount = cart_total
+            pending_order.save(update_fields=["total_amount"])
+            pending_order.items.set(cart_items,clear=True)
+            
         self.handle_shipping_billing_address(validated_data, pending_order)
 
-        payment_method = validated_data.pop("payment_method")
 
         match payment_method:
             case "Khalti":
-                self.inititate_with_khalti(validated_data, pending_order)
+                payment_link = self.inititate_with_khalti(validated_data, pending_order)
+                return {
+                    "payment_link": payment_link,
+                }
             case "Esewa":
-                ...
+                payment_data = self.initiate_with_esewa(validated_data, pending_order)
+                return payment_data
             case "COD":
                 ...
 
 
         return validated_data
+
+    def to_representation(self, instance : dict):
+        return instance

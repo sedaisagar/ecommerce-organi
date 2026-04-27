@@ -212,3 +212,8 @@ CACHES = {
         "LOCATION": "redis://127.0.0.1:6379",
     }
 }
+
+
+KHALTI_SECRET_KEY=os.getenv("KHALTI_SECRET_KEY")
+ESEWA_SECRET_KEY=os.getenv("ESEWA_SECRET_KEY")
+ESEWA_MERCHANT_ID=os.getenv("ESEWA_MERCHANT_ID")
