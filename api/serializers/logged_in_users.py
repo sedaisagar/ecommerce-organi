@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import hmac
+import json
 import math
 import random
 from typing import Union
@@ -8,7 +9,7 @@ from typing import Union
 import requests
 from rest_framework import serializers
 
-from cart_orders.models import CartItems, PendingOrder, ShippingBillingAddress
+from cart_orders.models import CartItems, OrderItems, PendingOrder, ShippingBillingAddress, UserOrder
 from ecommerce import settings
 from products.models import CouponCode, Product
 
@@ -190,7 +191,7 @@ class CartCheckoutSerializer(serializers.Serializer):
         ESEWA_SECRET_KEY = settings.ESEWA_SECRET_KEY
         ESEWA_MERCHANT_ID = settings.ESEWA_MERCHANT_ID
 
-        total_amount = math.trunc(pending_order.total_amount *100 ) / 100
+        total_amount = str(math.trunc(pending_order.total_amount *100 ) / 100)
 
         # input text for signature generation
         input_text = f"total_amount={total_amount},transaction_uuid={payment_id},product_code={ESEWA_MERCHANT_ID}"
@@ -312,3 +313,176 @@ class CartCheckoutSerializer(serializers.Serializer):
 
     def to_representation(self, instance : dict):
         return instance
+
+from django.db import transaction
+class PaymentVerifySerializer(serializers.Serializer):
+    PAYMENT_CHOICES = (
+        ("Khalti","Khalti"),
+        ("Esewa","Esewa"),
+    )
+    token = serializers.CharField(write_only=True)
+    payment_method = serializers.ChoiceField(choices=PAYMENT_CHOICES, write_only=True)
+    pidx = serializers.CharField(write_only=True, required=False)
+
+    def handle_esewa(self, token):
+        
+        decoded_message = base64.b64decode(token)
+        json_data = json.loads(decoded_message)
+
+        total_amount = json_data.get("total_amount")
+        transaction_uuid = json_data.get("transaction_uuid")
+
+        status_check_url = f"https://rc.esewa.com.np/api/epay/transaction/status/?product_code={settings.ESEWA_MERCHANT_ID}&total_amount={total_amount}&transaction_uuid={transaction_uuid}"
+
+        response = requests.get(status_check_url)
+        if response.status_code == 200:
+            response = response.json()
+            pending_order = PendingOrder.objects.filter(payment_id=transaction_uuid).first()
+            if not pending_order:
+                return 400, {
+                    "message":"Payment verification failed!"
+                }
+            match response.get("status"):
+                case "COMPLETE":
+                    cart_items = CartItems.objects.filter(user=pending_order.user)
+                    
+                    order = UserOrder.objects.create(
+                        user = pending_order.user,
+                        coupon_code = pending_order.coupon_code,
+                        delivery_charge = pending_order.delivery_charge,
+                        coupon_amount = pending_order.coupon_amount,
+                        payment_method = pending_order.payment_method,
+                        payment_id = pending_order.payment_id,
+                        total_amount = pending_order.total_amount,
+                        extra_gateway_data = response,
+                        shipping_address = pending_order.shipping_address,
+                        billing_address = pending_order.billing_address,
+                    )
+
+                    order_items = []
+                    for item in cart_items:
+                        order_items.append(
+                            OrderItems(
+                                user=order.user,
+                                product=item.product,
+                                quantity=item.quantity,
+                                price=item.product.price,
+                            )
+                        )
+                    OrderItems.objects.bulk_create(order_items)
+                    order.items.set(order_items, clear=True)
+
+                    cart_items.delete()
+                    pending_order.delete()
+                    return 200, {
+                        "message":"Payment verified successfully!"
+                    }
+            return 400, {
+                    "message":"Payment verification failed!"
+                }  
+
+    def handle_khalti(self, token, pidx):
+        url = "https://dev.khalti.com/api/v2"
+        verify_url = url + "/epayment/lookup/"
+        secret_key = settings.KHALTI_SECRET_KEY
+
+        headers = {
+            "Authorization": f"Key {secret_key}",  
+             'Content-Type': 'application/json',
+        }  
+
+        payload = {
+            "pidx": pidx
+        }
+        response = requests.request("POST", verify_url, headers=headers, data=json.dumps(payload))
+
+        if response.status_code == 200: # Sucess Case 
+            data = response.json()
+            status = data.get("status")
+            match status:
+                case "Completed":
+                    
+                    try:
+                        pending_order = PendingOrder.objects.filter(payment_id=token).first()
+                        if not pending_order:
+                            return 400, {
+                                "message":"Payment verification failed!"
+                            }
+                        cart_items = CartItems.objects.filter(user=pending_order.user)
+                        
+                        order = UserOrder.objects.create(
+                            user = pending_order.user,
+                            coupon_code = pending_order.coupon_code,
+                            delivery_charge = pending_order.delivery_charge,
+                            coupon_amount = pending_order.coupon_amount,
+                            payment_method = pending_order.payment_method,
+                            payment_id = pending_order.payment_id,
+                            total_amount = pending_order.total_amount,
+                            extra_gateway_data = data,
+                            shipping_address = pending_order.shipping_address,
+                            billing_address = pending_order.billing_address,
+                        )
+
+                        order_items = []
+                        for item in cart_items:
+                            order_items.append(
+                                OrderItems(
+                                    user=order.user,
+                                    product=item.product,
+                                    quantity=item.quantity,
+                                    price=item.product.price,
+                                )
+                            )
+                        OrderItems.objects.bulk_create(order_items)
+                        order.items.set(order_items, clear=True)
+
+                        cart_items.delete()
+                        pending_order.delete()
+                        return 200, {
+                            "message":"Payment verified successfully!"
+                        }
+                    except Exception as e:
+                        raise serializers.ValidationError({
+                            "details":e.args
+                        })
+            
+        return 400, {
+                "message":"Payment verification failed!"
+            }  
+
+
+    @transaction.atomic
+    def create(self, validated_data:dict):
+        token = validated_data.pop("token")
+        payment_method = validated_data.pop("payment_method")
+        pidx = validated_data.pop("pidx", None)
+
+        status,message=400,"Action Unimplemented"
+
+        match payment_method:
+            case "Esewa":
+                status,message = self.handle_esewa(token)
+            case "Khalti":
+                status, message = self.handle_khalti(token, pidx)
+        if status == 200:
+            return message
+        else:
+            raise serializers.ValidationError(message)
+
+    def to_representation(self, instance:dict):
+        return instance
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OrderItems
+        fields = "__all__"
+
+class UserOrdersSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True)
+    class Meta:
+        model = UserOrder
+        # fields = "__all__"
+        exclude=["user"]
+        depth=1
+
+

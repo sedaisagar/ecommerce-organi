@@ -1,7 +1,15 @@
 from rest_framework import generics
 
-from api.serializers.logged_in_users import CartActionSerializer, CartCheckoutSerializer, CouponApplySerializer, PendingOrderSerializer
-from cart_orders.models import CartItems, PendingOrder
+from api.serializers.logged_in_users import (
+    CartActionSerializer, 
+    CartCheckoutSerializer, 
+    CouponApplySerializer,
+    PaymentVerifySerializer, 
+    PendingOrderSerializer,
+    ShippingBillingSerializer,
+    UserOrdersSerializer,
+)
+from cart_orders.models import CartItems, PendingOrder, UserOrder
 
 from drf_spectacular.utils import extend_schema
 
@@ -51,7 +59,11 @@ class UserCartListAction(generics.ListCreateAPIView):
                 "total":total_amount,
             }
         else:
-            response.data["meta"] = PendingOrderSerializer(pending_order).data
+            response.data["meta"] = {
+                "pending_order":PendingOrderSerializer(pending_order).data,
+                "shipping_address": ShippingBillingSerializer(pending_order.shipping_address).data,
+                "billing_address": ShippingBillingSerializer(pending_order.billing_address).data,
+            }
 
         return response
 
@@ -70,4 +82,19 @@ class CartCheckoutView(generics.CreateAPIView):
 
     def get_queryset(self):
         return []
+
+@extend_schema(tags=["LoggedIn User API(s)"])
+class PaymentVerifyView(generics.CreateAPIView):
+    # queryset = CouponCode.objects.all()
+    serializer_class = PaymentVerifySerializer
+    permission_classes = []
+
+    def get_queryset(self):
+        return []
+
+@extend_schema(tags=["LoggedIn User API(s)"])
+class UserOrdersView(generics.ListAPIView):
+    queryset = UserOrder.objects.all()
+    serializer_class = UserOrdersSerializer
+    permission_classes = [IsUser]
 
